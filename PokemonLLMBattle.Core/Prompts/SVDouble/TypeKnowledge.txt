@@ -1,0 +1,48 @@
+KEEP THESE TYPE PROPERTIES IN MIND WHEN EVALUATING MOVES AND EFFECTS.
+**Terastalization Key Points**  
+- **Type Effectiveness:** Move effectiveness is recalculated based on the Tera Type after Terastalizing. Original typing no longer affects super-effective or not-very-effective damage.  
+- **STAB (Same-Type Attack Bonus):**    
+  - Matching Tera Type ⇒ +1.5× power (stacks with original STAB).    
+  - If Tera Type is the same as one of the Pokémon’s original types ⇒ total STAB can become ×2.    
+- **Tera Type: Star Variant:**    
+  - STAB becomes ×2 if matching the Tera Type, ×1.2 even if not matching.    
+  - The extra power applies only on the first use of a move with that attribute unless the Pokémon is *Terapagos* or it is a Tera Raid Battle (then there is no usage limit).    
+- **Single-Type Calculation:** When an effect (move, ability, item) depends on the Pokémon’s type, only the Tera Type is considered. The original type’s special effects are lost; the Tera Type’s effects are gained.  
+- **Status/Conditions Interaction:**    
+  - Pre-existing status conditions (e.g., *Leech Seed* on Tera Grass) are not removed upon Terastalizing.    
+  - If a Pokémon was trapped before Terastalizing into a Ghost Tera Type, it cannot remove the trap status automatically but can still be switched out.    
+- **Type-Changing Moves/Abilities:** Moves or abilities that add/change typing (*Soak*, *Protean*, *Libero*, etc.) do not overwrite the Tera Type. Post-Terastal, the Pokémon’s type stays as Tera Type plus any original type details are inactive.  
+- **Tera Blast & Revelation Dance:** These moves always become the Pokémon’s Tera Type, ignoring other type-modifying effects (e.g., *Pixilate*).  
+
+[TYPE IMMUNITIES & SPECIAL RULES]
+- Grass: Unaffected by powder/spore moves (Sleep Powder, Poison Powder, Spore, Rage Powder, etc.); immune to Leech Seed.
+- Rock: +50% Special Defense in sandstorm; immune to sandstorm damage.
+- Ice: +50% Defense in snowy weather (Gen 9+); immune to snowfall/hail damage.
+- Dark: Immune to Prankster-boosted status moves.
+- Poison & Steel: Cannot be poisoned.
+- Electric: Cannot be paralyzed.
+- Fire: Cannot be burned.
+- Ground: Immune to Thunder Wave.
+- Ghost: Cannot be trapped by Mean Look, Shadow Tag, etc.
+
+[TYPE EFFECTIVENESS MULTIPLIERS]
+- Normal: 0× vs Ghost  
+- Fire: 2× vs Grass, Ice, Bug, Steel; 0.5× vs Fire, Water, Rock, Dragon  
+- Water: 2× vs Fire, Ground, Rock; 0.5× vs Water, Grass, Dragon  
+- Electric: 2× vs Water, Flying; 0.5× vs Electric, Grass, Dragon; 0× vs Ground  
+- Grass: 2× vs Water, Ground, Rock; 0.5× vs Fire, Grass, Poison, Flying, Bug, Dragon, Steel  
+- Ice: 2× vs Grass, Ground, Flying, Dragon; 0.5× vs Fire, Water, Ice, Steel  
+- Fighting: 2× vs Normal, Ice, Rock, Dark, Steel; 0.5× vs Poison, Flying, Psychic, Bug, Fairy; 0× vs Ghost  
+- Poison: 2× vs Grass, Fairy; 0.5× vs Poison, Ground, Rock, Ghost; 0× vs Steel  
+- Ground: 2× vs Fire, Electric, Poison, Rock, Steel; 0.5× vs Grass, Bug; 0× vs Flying  
+- Flying: 2× vs Grass, Fighting, Bug; 0.5× vs Electric, Rock, Steel  
+- Psychic: 2× vs Fighting, Poison; 0.5× vs Psychic, Steel; 0× vs Dark  
+- Bug: 2× vs Grass, Psychic, Dark; 0.5× vs Fire, Fighting, Poison, Flying, Ghost, Steel, Fairy  
+- Rock: 2× vs Fire, Ice, Flying, Bug; 0.5× vs Fighting, Ground, Steel  
+- Ghost: 2× vs Psychic, Ghost; 0.5× vs Dark; 0× vs Normal  
+- Dragon: 2× vs Dragon; 0.5× vs Steel; 0× vs Fairy  
+- Dark: 2× vs Psychic, Ghost; 0.5× vs Fighting, Dark, Fairy  
+- Steel: 2× vs Ice, Rock, Fairy; 0.5× vs Fire, Water, Electric, Steel  
+- Fairy: 2× vs Fighting, Dragon, Dark; 0.5× vs Fire, Poison, Steel
+
+If a field condition like Tailwind is already active, using the same move again will fail rather than extending its remaining turns.
