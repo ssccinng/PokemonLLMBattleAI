@@ -24,6 +24,9 @@ LLM数学计算能力较弱，但如果仅是基于文字推理，其表现可�
 KEEP THESE MOVE/ITEM/ABILITY KNOWLEDGE IN MIND WHEN EVALUATING MOVES AND EFFECTS\n1. Move Knowledge:\r\n[\r\n  {\r\n    \"move\": \"Electro Drift\",\r\n    \"description\": \"Damage is multiplied by 1.3333 if this move is super effective against the target.\",\r\n    \"type\": \"Electric\",\r\n    \"power\": 100,\r\n    \"accuracy\": 100,\r\n    \"priority\": 0\r\n  },\r\n  {\r\n    \"move\": \"Draco Meteor\",\r\n    \"description\": \"Lowers the user\\u0027s Special Attack by 2 stages.\",\r\n    \"type\": \"Dragon\",\r\n    \"power\": 130,\r\n    \"accuracy\": 90,\r\n    \"priority\": 0\r\n  },\r\n  {\r\n    \"move\": \"Snarl\",\r\n    \"description\": \"Has a 100% chance to lower the target\\u0027s Special Attack by 1 stage.\",\r\n    \"type\": \"Dark\",\r\n    \"power\": 55,\r\n    \"accuracy\": 95,\r\n 
 ```
 
+## 扩展
+在编写该项目图中，深刻的意识到了事实上目前大部分推理模型的推理能力并不强，该项目后续可能能用作模型推理能力的评估标准
+
 ## 战绩
 目前最佳战绩在PS 规则I Bo3天梯中达到了1250分数左右  
 首次实战选择了云嗨杯，尽管瑞士轮成绩仅1-5（1轮空）, 但是在bo3的小局中依然拿下了3个小局，并且其实也拥有拿下一整个bo3的可能性，可惜往往残局的不稳定发挥有可能一瞬间葬送优势（对于局势的判定能力有待加强）
