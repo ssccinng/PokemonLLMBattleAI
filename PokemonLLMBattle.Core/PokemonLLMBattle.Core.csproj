@@ -18,6 +18,9 @@
 		  <None Update="Prompts\SVDouble\**">
 		    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		  </None>
+		  <None Update="Prompts\SVSingle\**">
+		    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		  </None>
 		</ItemGroup>
 		<ItemGroup>
 		  <None Update="Data\pokemon-text-data.json">
