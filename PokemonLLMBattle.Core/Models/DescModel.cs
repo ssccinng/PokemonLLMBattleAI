@@ -36,36 +36,32 @@ namespace PokemonLLMBattle.Core.Models
         public static PokemonKnowledgeModel PokemonKnowledgeModel = JsonSerializer.Deserialize<PokemonKnowledgeModel>(
             System.IO.File.ReadAllText("Data/pokemon-text-data.json"), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase})!;
 
-        extension(PokemonKnowledgeModel model)
+        public static DescModel? GetItemById(this PokemonKnowledgeModel model, string id)
         {
-            public DescModel? GetItemById(string id)
-            {
-                return model.Items.FirstOrDefault(item => item.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
-            }
-            public  DescModel? GetAbilityById(string id)
-            {
-                return model.Abilities.FirstOrDefault(ability => ability.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
-            }
-            public DescModel? GetMoveById(string id)
-            {
-                return model.Moves.FirstOrDefault(move => move.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
-            }
+            return model.Items.FirstOrDefault(item => item.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        }
+        public static DescModel? GetAbilityById(this PokemonKnowledgeModel model, string id)
+        {
+            return model.Abilities.FirstOrDefault(ability => ability.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        }
+        public static DescModel? GetMoveById(this PokemonKnowledgeModel model, string id)
+        {
+            return model.Moves.FirstOrDefault(move => move.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        }
 
-            public DescModel? GetItemByName(string name)
-            {
-                return model.Items.FirstOrDefault(item => item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            }
+        public static DescModel? GetItemByName(this PokemonKnowledgeModel model, string name)
+        {
+            return model.Items.FirstOrDefault(item => item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
 
-            public DescModel? GetAbilityByName(string name)
-            {
-                return model.Abilities.FirstOrDefault(ability => ability.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            }
+        public static DescModel? GetAbilityByName(this PokemonKnowledgeModel model, string name)
+        {
+            return model.Abilities.FirstOrDefault(ability => ability.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
 
-            public DescModel? GetMoveByName(string name)
-            {
-                return model.Moves.FirstOrDefault(move => move.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            }
-
+        public static DescModel? GetMoveByName(this PokemonKnowledgeModel model, string name)
+        {
+            return model.Moves.FirstOrDefault(move => move.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         }
     }
 }
