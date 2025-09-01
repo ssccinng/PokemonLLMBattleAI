@@ -31,9 +31,6 @@ namespace PokemonLLMBattle.Core
         public static readonly string TypeKnowledgePrompt = File.ReadAllText("Prompts/SVSingle/TypeKnowledge.txt");
     }
 
-    public record BattlePlanStep(string PlanStep, bool IsOver);
-    public record BattlePlan(List<BattlePlanStep> Steps);
-
 
     internal class SingleBattlePromptBuilder : IPromptBuilder
     {
@@ -574,13 +571,14 @@ output this think in ""think"" field
             var SystemPrompt = BuildChooseMoveSystemPrompt(context);
             var gamestate = BuildGameStatePrompt(context);
             var gamestateKnowledge = BuildGameStateKnowledgePrompt(context);
+            var battlePlanContext = BuildBattlePlanContextPrompt(context);
 
             var typeKnowledge = BuildTypeKnowledgePrompt();
             var historyKnowledge = BuildHistoryKnowledgePrompt(context);
             var decisionRequestPrompt = BuildChooseMoveDecisionRequestPrompt(context, chooseCondition);
 
             List<ChatMessage> messages = [
-                new ChatMessage(ChatRole.System, $"{SystemPrompt}\n{typeKnowledge}\n{gamestateKnowledge}\n{historyKnowledge}"),
+                new ChatMessage(ChatRole.System, $"{SystemPrompt}\n{typeKnowledge}\n{gamestateKnowledge}\n{historyKnowledge}\n{battlePlanContext}"),
                 new ChatMessage(ChatRole.User, gamestate),
                 new ChatMessage(ChatRole.System, decisionRequestPrompt)
                 ];
@@ -618,11 +616,14 @@ output this think in ""think"" field
             // 构建历史知识提示
             var historyKnowledgePrompt = BuildTeamOrderHistoryKnowledgePrompt(context);
 
+            // 构建战斗计划上下文
+            var battlePlanContext = BuildBattlePlanContextPrompt(context);
+
             // 构建决策请求提示
             var decisionRequestPrompt = BuildTeamOrderDecisionRequestPrompt(context, teamOrderCondition);
 
             List<ChatMessage> messages = [
-                new ChatMessage(ChatRole.System, $"{SystemPrompt}\n{teamKnowledgePrompt}\n{historyKnowledgePrompt}"),
+                new ChatMessage(ChatRole.System, $"{SystemPrompt}\n{teamKnowledgePrompt}\n{historyKnowledgePrompt}\n{battlePlanContext}"),
                 new ChatMessage(ChatRole.User, teamInfoPrompt),
                 new ChatMessage(ChatRole.System, decisionRequestPrompt)
             ];
@@ -697,6 +698,76 @@ Overall, focus on Garchomp's offensive presence and adjust your team composition
 
             return messages;
 
+        }
+
+        /// <summary>
+        /// 构建战斗计划上下文提示
+        /// </summary>
+        string BuildBattlePlanContextPrompt(PromptContext context)
+        {
+            if (context.BattlePlan == null)
+                return "";
+
+            var plan = context.BattlePlan;
+            var prompt = new StringBuilder();
+            
+            prompt.AppendLine("=== CURRENT BATTLE PLAN ===");
+            prompt.AppendLine($"Overall Objective: {plan.OverallObjective}");
+            prompt.AppendLine($"Plan Status: {plan.Status}");
+            prompt.AppendLine($"Completion: {plan.CompletionPercentage}%");
+            
+            if (plan.KeyTactics.Any())
+            {
+                prompt.AppendLine("\nKey Tactics:");
+                foreach (var tactic in plan.KeyTactics)
+                {
+                    prompt.AppendLine($"- {tactic}");
+                }
+            }
+
+            var currentPhase = plan.BattlePhases.FirstOrDefault(p => p.Status == PhaseStatus.InProgress);
+            if (currentPhase != null)
+            {
+                prompt.AppendLine($"\nCurrent Phase: {currentPhase.PhaseName}");
+                prompt.AppendLine($"Phase Description: {currentPhase.Description}");
+                prompt.AppendLine($"Phase Progress: Turn {currentPhase.ActualTurns}/{currentPhase.ExpectedTurns}");
+                
+                if (currentPhase.Objectives.Any())
+                {
+                    prompt.AppendLine("Phase Objectives:");
+                    foreach (var objective in currentPhase.Objectives)
+                    {
+                        var status = objective.IsCompleted ? "✓" : "○";
+                        prompt.AppendLine($"  {status} {objective.Description}");
+                    }
+                }
+            }
+
+            var nextPhase = plan.BattlePhases.FirstOrDefault(p => p.Status == PhaseStatus.Pending);
+            if (nextPhase != null)
+            {
+                prompt.AppendLine($"\nNext Phase: {nextPhase.PhaseName}");
+                prompt.AppendLine($"Next Phase Goal: {nextPhase.Description}");
+            }
+
+            if (plan.RiskAssessment.MajorThreats.Any())
+            {
+                prompt.AppendLine("\nMajor Threats to Watch:");
+                foreach (var threat in plan.RiskAssessment.MajorThreats)
+                {
+                    prompt.AppendLine($"- {threat}");
+                }
+            }
+
+            if (plan.AdjustmentHistory.Any())
+            {
+                var lastAdjustment = plan.AdjustmentHistory.Last();
+                prompt.AppendLine($"\nLast Plan Adjustment: {lastAdjustment.Reason} (Turn {lastAdjustment.TurnNumber})");
+            }
+
+            prompt.AppendLine("\nRemember to consider your battle plan when making decisions, but adapt if the situation changes significantly.");
+            
+            return prompt.ToString();
         }
     }
 }

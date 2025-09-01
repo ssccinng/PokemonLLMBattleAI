@@ -28,26 +28,91 @@ namespace PokemonLLMBattle.Core
         private IChatClient _chatClient;
         private IChatClient _chatSimpleClient;
         private IPromptBuilder _promptBuilder;
+        private IBattlePlanManager _battlePlanManager;
 
         public LLMDecisionEngine(
             IChatClient chatClient,
             IChatClient chatSimpleClient,
-            IPromptBuilder promptBuilder
+            IPromptBuilder promptBuilder,
+            IBattlePlanManager? battlePlanManager = null
             )
         {
             _chatClient = chatClient;
             _chatSimpleClient = chatSimpleClient;
             _promptBuilder = promptBuilder;
+            _battlePlanManager = battlePlanManager ?? new SingleBattlePlanManager(chatClient, promptBuilder);
         }
         public async Task<Decision> MakeDecisionAsync(GameState gameState, CancellationToken token)
         {
-            return gameState.Condition switch
+            // 确保游戏状态包含战斗计划
+            var updatedGameState = await EnsureBattlePlanExistsAsync(gameState, token);
+
+            return updatedGameState.Condition switch
             {
-                ForceSwitchCondition fc => await MakeForceSwitchDecisionAsync(gameState, fc, token),
-                TeamOrderCondition toc => await MakeTeamOrderDecisionAsync(gameState, toc, token),
-                ChooseCondition cc => await MakeChooseMoveDecisionAsync(gameState, cc, token),
-                _ => throw new NotSupportedException($"Unsupported condition type: {gameState.Condition.GetType().Name}")
+                ForceSwitchCondition fc => await MakeForceSwitchDecisionAsync(updatedGameState, fc, token),
+                TeamOrderCondition toc => await MakeTeamOrderDecisionAsync(updatedGameState, toc, token),
+                ChooseCondition cc => await MakeChooseMoveDecisionAsync(updatedGameState, cc, token),
+                _ => throw new NotSupportedException($"Unsupported condition type: {updatedGameState.Condition.GetType().Name}")
             };
+        }
+
+        /// <summary>
+        /// 创建初始战斗计划
+        /// </summary>
+        public async Task<SingleBattlePlan> CreateInitialBattlePlanAsync(GameState gameState, CancellationToken token = default)
+        {
+            return await _battlePlanManager.CreateInitialBattlePlanAsync(gameState, token);
+        }
+
+        /// <summary>
+        /// 更新战斗计划
+        /// </summary>
+        public async Task<GameState> UpdateBattlePlanAsync(GameState gameState, CancellationToken token = default)
+        {
+            if (gameState.BattlePlan == null)
+            {
+                // 如果没有计划，创建初始计划
+                var initialPlan = await _battlePlanManager.CreateInitialBattlePlanAsync(gameState, token);
+                return gameState with { BattlePlan = initialPlan };
+            }
+
+            // 更新现有计划
+            var updatedPlan = await _battlePlanManager.UpdateBattlePlanAsync(gameState.BattlePlan, gameState, token);
+            
+            // 保存计划到战斗数据
+            gameState.PSBattle.Additions["battle_plan"] = _battlePlanManager.SerializePlan(updatedPlan);
+            
+            return gameState with { BattlePlan = updatedPlan };
+        }
+
+        /// <summary>
+        /// 确保游戏状态包含战斗计划
+        /// </summary>
+        private async Task<GameState> EnsureBattlePlanExistsAsync(GameState gameState, CancellationToken token)
+        {
+            if (gameState.BattlePlan != null)
+            {
+                // 更新现有计划
+                return await UpdateBattlePlanAsync(gameState, token);
+            }
+
+            // 检查是否有保存的计划
+            if (gameState.PSBattle.Additions.TryGetValue("battle_plan", out var savedPlanJson) && 
+                savedPlanJson is string planJson)
+            {
+                var savedPlan = _battlePlanManager.DeserializePlan(planJson);
+                if (savedPlan != null)
+                {
+                    var updatedPlan = await _battlePlanManager.UpdateBattlePlanAsync(savedPlan, gameState, token);
+                    return gameState with { BattlePlan = updatedPlan };
+                }
+            }
+
+            // 创建新计划
+            var newPlan = await _battlePlanManager.CreateInitialBattlePlanAsync(gameState, token);
+            gameState.PSBattle.Additions["battle_plan"] = _battlePlanManager.SerializePlan(newPlan);
+            
+            return gameState with { BattlePlan = newPlan };
         }
 
         private async Task<Decision> MakeChooseMoveDecisionAsync(GameState gameState, ChooseCondition cc, CancellationToken token)
@@ -65,7 +130,10 @@ namespace PokemonLLMBattle.Core
             var lastTurn = gameState.BattleData.GetLastTurn();
             var request = lastTurn.Requests.Last();
             var battleData = gameState.BattleData;
-            var messages = await _promptBuilder.BuildChooseMovePromptAsync(new PromptContext() { CurrentState = gameState }, cc);
+            var messages = await _promptBuilder.BuildChooseMovePromptAsync(new PromptContext() { 
+                CurrentState = gameState, 
+                BattlePlan = gameState.BattlePlan 
+            }, cc);
 
             var response = await _chatClient.GetResponseAsync(messages, chatOption, token);
             SaveChatLog(gameState, response, messages);
@@ -154,7 +222,10 @@ namespace PokemonLLMBattle.Core
                 effort = "medium",
             };
 
-            var messages = await _promptBuilder.BuildTeamOrderPromptAsync(new PromptContext() { CurrentState = gameState }, toc);
+            var messages = await _promptBuilder.BuildTeamOrderPromptAsync(new PromptContext() { 
+                CurrentState = gameState, 
+                BattlePlan = gameState.BattlePlan 
+            }, toc);
             var response = await _chatClient.GetResponseAsync(messages, chatOption, token);
             Console.WriteLine(response.Text);
 
@@ -224,7 +295,10 @@ namespace PokemonLLMBattle.Core
             var lastTurn = gameState.BattleData.GetLastTurn();
             var request = lastTurn.Requests.Last();
             var battleData = gameState.BattleData;
-            var messages = await _promptBuilder.BuildForceSwitchPromptAsync(new PromptContext() { CurrentState = gameState }, fc);
+            var messages = await _promptBuilder.BuildForceSwitchPromptAsync(new PromptContext() { 
+                CurrentState = gameState, 
+                BattlePlan = gameState.BattlePlan 
+            }, fc);
             var response = await _chatClient.GetResponseAsync(messages, chatOption, token);
             Console.WriteLine(response.Text);
             SaveChatLog(gameState, response, messages);
@@ -280,7 +354,10 @@ namespace PokemonLLMBattle.Core
             {
                 effort = "medium",
             };
-            var messages = await _promptBuilder.BuildSummaryBoBattlePromptAsync(new PromptContext() { CurrentState = gameState });
+            var messages = await _promptBuilder.BuildSummaryBoBattlePromptAsync(new PromptContext() { 
+                CurrentState = gameState, 
+                BattlePlan = gameState.BattlePlan 
+            });
             var response = await _chatClient.GetResponseAsync(messages, chatOption, token);
             Console.WriteLine(response.Text);
             return response.Text;
@@ -297,7 +374,10 @@ namespace PokemonLLMBattle.Core
             {
                 effort = "medium",
             };
-            var messages = await _promptBuilder.BuildSummaryTeamPromptAsync(new PromptContext() { CurrentState = gameState });
+            var messages = await _promptBuilder.BuildSummaryTeamPromptAsync(new PromptContext() { 
+                CurrentState = gameState, 
+                BattlePlan = gameState.BattlePlan 
+            });
             var response = await _chatClient.GetResponseAsync(messages, chatOption, token);
             Console.WriteLine(response.Text);
             return response.Text;

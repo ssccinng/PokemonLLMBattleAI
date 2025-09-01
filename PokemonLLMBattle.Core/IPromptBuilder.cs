@@ -29,6 +29,7 @@ namespace PokemonLLMBattle.Core
 
         public GameState? CurrentState { get; set; }
         public BattleStrategy? Strategy { get; set; }
+        public SingleBattlePlan? BattlePlan { get; set; }
         public List<Decision> DecisionHistory { get; set; } = new();
         public Dictionary<string, object> AdditionalContext { get; set; } = new();
     }
@@ -38,12 +39,13 @@ namespace PokemonLLMBattle.Core
         PSBattle PSBattle,
         BattleData BattleData,
         LLMTrainerTeam MyTeam,
-        StateCondition Condition
+        StateCondition Condition,
+        SingleBattlePlan? BattlePlan = null
         )
     {
         public static GameState CreateDefault(BattleData battleData)
         {
-            return new GameState(null, battleData,  LLMTrainerTeam.CreateDefault(""), StateCondition.ChooseCondition);
+            return new GameState(null, battleData,  LLMTrainerTeam.CreateDefault(""), StateCondition.ChooseCondition, null);
         }
     }
 
