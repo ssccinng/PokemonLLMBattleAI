@@ -12,7 +12,10 @@
 		<PackageReference Include="LanguageExt.Core" Version="4.4.9" />
 		<PackageReference Include="Microsoft.Extensions.AI" Version="9.6.0" />
 		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="9.6.0-preview.1.25310.2" />
-		<PackageReference Include="ShowdownClient" Version="1.0.0" />
+		<!--<PackageReference Include="ShowdownClient" Version="1.0.0" />-->
+	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\..\..\CSharpDev\ssccinng\PokeSci\ShowdownClient\ShowdownClient.csproj" />
 	</ItemGroup>
 		<ItemGroup>
 		  <None Update="Prompts\SVDouble\**">

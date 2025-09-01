@@ -16,6 +16,12 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
+// 战斗要点
+// 1. 配置推测，这可能要结合当场表现
+// 2. 战斗要点规划，先规划出对战计划，再根据计划选择出招
+// 3. 出招的结果，计算反哺
+
+
 namespace PokemonLLMBattle.Core
 {
 
@@ -24,6 +30,10 @@ namespace PokemonLLMBattle.Core
         public static readonly string ChooseMoveSystemPrompt = File.ReadAllText("Prompts/SVSingle/ChooseMovePrompt.txt");
         public static readonly string TypeKnowledgePrompt = File.ReadAllText("Prompts/SVSingle/TypeKnowledge.txt");
     }
+
+    public record BattlePlanStep(string PlanStep, bool IsOver);
+    public record BattlePlan(List<BattlePlanStep> Steps);
+
 
     internal class SingleBattlePromptBuilder : IPromptBuilder
     {
@@ -43,23 +53,46 @@ namespace PokemonLLMBattle.Core
                                 ability = p.Ability?.Name_Eng,
                                 teraType = p.TreaType?.Name_Eng, // 如果由太晶可为null
                                 moves = p.Moves.Select(s => s.MetaMove?.Name_Eng).ToList(),
-                                evs = p.Evs,
                                 nature = p.Nature?.Name_Eng,
-                                ivs = p.Ivs,
+                                //evs = p.EVs,
+                                type = (new[] { baseStats?.Type1?.Name_Eng, baseStats?.Type2?.Name_Eng }).Where(s => !string.IsNullOrEmpty(s)),
+                                // 可能还需实际数值
+                            };
+            var getTeam1 =
+                    (Option<GamePokemonTeam> team) =>
+                            from mt in team
+                            from p in mt.GamePokemons
+                            let baseStats = p.MetaPokemon
+                            select new
+                            {
+                                pokemon = p.MetaPokemon?.PSPokemon.PSName,
+                                item = p.Item?.Name_Eng,
+                                ability = p.Ability?.Name_Eng,
+                                teraType = p.TreaType?.Name_Eng, // 如果由太晶可为null
+                                moves = p.Moves.Select(s => s.MetaMove?.Name_Eng).ToList(),
+                                //evs = p.Evs,
+                                nature = p.Nature?.Name_Eng,
+                                //ivs = p.Ivs,
+                                type = (new[] { baseStats?.Type1?.Name_Eng, baseStats?.Type2?.Name_Eng }).Where(s => !string.IsNullOrEmpty(s)),
+
                                 stats = new
                                 {
-                                    hp = baseStats?.HP,
-                                    atk = baseStats?.Attack,
-                                    def = baseStats?.Defense,
-                                    spa = baseStats?.SpecialAttack,
-                                    spd = baseStats?.SpecialDefense,
-                                    spe = baseStats?.Speed
+                                    hp = baseStats?.BaseHP,
+                                    atk = baseStats?.BaseAtk,
+                                    def = baseStats?.BaseDef,
+                                    spa = baseStats?.BaseSpa,
+                                    spd = baseStats?.BaseSpd,
+                                    spe = baseStats?.BaseSpe
                                 }
                             };
+            var battleData = context.CurrentState?.BattleData;
 
             var gameState = context.CurrentState;
-            var myTeam = getTeam(gameState?.MyTeam?.ToGamePokemonTeam());
-            var oppTeam = getTeam(gameState?.CurrentState?.BattleData?.OppTeam);
+            //var myTeam = getTeam(gameState?.MyTeam?.ToGamePokemonTeam());
+            //var oppTeam = getTeam(gameState?.CurrentState?.BattleData?.OppTeam);
+
+            var myTeam = getTeam(battleData.PlayerDatas[battleData.MySlot].Team);
+            var oppTeam = getTeam(battleData.PlayerDatas[1 - battleData.MySlot].Team);
 
             var prompt = new StringBuilder();
             prompt.AppendLine("Team Information:");
@@ -130,32 +163,45 @@ namespace PokemonLLMBattle.Core
 
             if (battleData.OpenSheet)
             {
-                var getNewTeam = 
-                    (Option<GamePokemonTeam> team, BattleTeam sideTeam) =>  
-                            from mt in team
-                            from p in mt.GamePokemons
-                            join msp in sideTeam.Pokemons
-                            on p.MetaPokemon!.Id equals msp.Pokemon.MetaPokemon?.Id
-                            let baseStats = p.MetaPokemon
-                            select new { 
-                                pokemon = msp.Pokemon.MetaPokemon?.PSPokemon.PSName,
-                                item = msp.Item.IsSome ? p.Item?.Name_Eng : "No Item",
-                                ability = p.Ability?.Name_Eng,
-                                teraType = p.TreaType?.Name_Eng,
-                                moves = p.Moves.Select(s => s.MetaMove?.Name_Eng).ToList(),
-                                level = msp.Pokemon.Level,
-                                hp = $"{msp.Status.Hp}/{msp.Status.MaxHp}",
-                                status = typeof(PokeCommon.Models.PokemonStatus)
-                                    .GetProperties()
-                                    .Select(p => (p.Name, (int)p.GetValue(msp.Status)))
-                                    .Where(s => s.Item2 != 0)
-                                    .Select(s => $"{s.Item1}: {s.Item2}"),
-                                first_turn_on_the_field = msp.Status.InField_First_Turn > 0 ? "true":"false(cant use move like fake out)",
-                                protectCnt = msp.Status.ProtectCnt,
-                            };
+                var getNewTeam =
+                     (Option<GamePokemonTeam> team, BattleTeam sideTeam) =>
+                             from mt in team
+                             from p in mt.GamePokemons
+                             join msp in sideTeam.Pokemons
+                             on p.MetaPokemon!.Id equals msp.Pokemon.MetaPokemon?.Id
+                             let baseStats = p.MetaPokemon
+                             select new
+                             {
+                                 pokemon = msp.Pokemon.MetaPokemon?.PSPokemon.PSName,
+                                 item = msp.Item.IsSome ? p.Item?.Name_Eng : "No Item",
+                                 ability = p.Ability?.Name_Eng,
+                                 teraType = p.TreaType?.Name_Eng, // 如果由太晶可为null
+                                 moves = p.Moves.Select(s =>
+                                     s.MetaMove?.Name_Eng
+                                 ).ToList(),
+                                 nature = p.Nature?.Name_Eng,
+                                 lastUseMove = msp.LastMove.IsSome ? msp.LastMove.ValueUnsafe().Name_Eng : "No move used",
+                                 //evs = p.EVs, //Todo 这个ev要不要加入
+                                 type = (new[] { baseStats?.Type1?.Name_Eng, baseStats?.Type2?.Name_Eng }).Where(s => !string.IsNullOrEmpty(s)),
+                                 //ivs = p.IVs, // 可能不需要
+                                 hpRemain = $"{msp.HpRemain}%",
+                                 battleStatus = msp.BattleStatus.GetStatusPrompt(),
+                                 teraStallized = msp.TeratallizeStatus.GetStatusPrompt(),
+                                 status = msp.Status.GetType().GetProperties()
+                 .Where(p => p.Name != "ProtectCnt" && p.Name != "InField_First_Turn")
+                                     .Select(p => (p.Name, (int)p.GetValue(msp.Status)))
+                                     .Where(s => s.Item2 != 0)
+                                     .Select(s => $"{s.Item1}: {s.Item2}"),
+                                 first_turn_on_the_field = msp.Status.InField_First_Turn > 0 ? "true" : "false(cant use move like fake out)",
+                                 protectCnt = msp.Status.ProtectCnt,
+                                 //.Select(s => new { status = s.Item1, value = s.Item2 })
+                             };
+                //var myTeam = battleData.MyTeam;
+                //var oppTeam = battleData.OppTeam;
 
-                var myTeam = battleData.MyTeam;
-                var oppTeam = battleData.OppTeam;
+                LanguageExt.Option<PokeCommon.Models.GamePokemonTeam> myTeam = battleData.PlayerDatas[battleData.MySlot].Team;
+                //var mySideTeam = lastTurn.SideTeam[battleData.MySlot];
+                var oppTeam = battleData.PlayerDatas[1 - battleData.MySlot].Team;
                 var myNewTeam = getNewTeam(myTeam, mySideTeam);
                 var oppNewTeam = getNewTeam(oppTeam, oppSideTeam);
 
@@ -188,14 +234,14 @@ namespace PokemonLLMBattle.Core
                 var myVisibleTeam = mySideTeam.Pokemons.Select(msp => new
                 {
                     pokemon = msp.Pokemon.MetaPokemon?.PSPokemon.PSName,
-                    level = msp.Pokemon.Level,
-                    hp = $"{msp.Status.Hp}/{msp.Status.MaxHp}",
-                    status = typeof(PokeCommon.Models.PokemonStatus)
-                        .GetProperties()
-                        .Select(p => (p.Name, (int)p.GetValue(msp.Status)))
-                        .Where(s => s.Item2 != 0)
-                        .Select(s => $"{s.Item1}: {s.Item2}"),
-                    first_turn_on_the_field = msp.Status.InField_First_Turn > 0 ? "true":"false(cant use move like fake out)",
+                    //level = msp.Pokemon,
+                    hp = $"{msp.HpRemain}/{100}",
+                    //status = typeof(PokeCommon.Models.PokemonStatus)
+                    //    .GetProperties()
+                    //    .Select(p => (p.Name, (int)p.GetValue(msp.Status)))
+                    //    .Where(s => s.Item2 != 0)
+                    //    .Select(s => $"{s.Item1}: {s.Item2}"),
+                    first_turn_on_the_field = msp.Status.InField_First_Turn > 0 ? "true" : "false(cant use move like fake out)",
                     protectCnt = msp.Status.ProtectCnt,
                 });
 
@@ -207,18 +253,20 @@ namespace PokemonLLMBattle.Core
 
                 prompt.AppendLine("**OPPONENT TEAM** (visible information only):");
                 prompt.AppendLine($"Can Teratallize: {oppSideTeam.CanTerastallize}");
-                
+                // 可见宝，
                 // Show only visible opponent information
-                var oppVisibleTeam = oppSideTeam.Pokemons.Where(p => p.Pokemon.Revealed).Select(msp => new
+                var oppVisibleTeam = oppSideTeam.Pokemons
+                    //.Where(p => p.Pokemon)
+                    .Select(msp => new
                 {
                     pokemon = msp.Pokemon.MetaPokemon?.PSPokemon.PSName,
-                    level = msp.Pokemon.Level,
-                    hp = $"{msp.Status.Hp}/{msp.Status.MaxHp}",
-                    status = typeof(PokeCommon.Models.PokemonStatus)
-                        .GetProperties()
-                        .Select(p => (p.Name, (int)p.GetValue(msp.Status)))
-                        .Where(s => s.Item2 != 0)
-                        .Select(s => $"{s.Item1}: {s.Item2}"),
+                    //level = msp.Pokemon.Level,
+                    hp = $"{msp.HpRemain}/{100}",
+                    //status = typeof(PokeCommon.Models.PokemonStatus)
+                    //    .GetProperties()
+                    //    .Select(p => (p.Name, (int)p.GetValue(msp.Status)))
+                    //    .Where(s => s.Item2 != 0)
+                    //    .Select(s => $"{s.Item1}: {s.Item2}"),
                     first_turn_on_the_field = msp.Status.InField_First_Turn > 0 ? "true":"false(cant use move like fake out)",
                     protectCnt = msp.Status.ProtectCnt,
                 });
@@ -236,14 +284,14 @@ namespace PokemonLLMBattle.Core
         public string BuildTeamOrderDecisionRequestPrompt(PromptContext context, TeamOrderCondition teamOrderCondition)
         {
             var battleData = context.CurrentState?.BattleData;
-            var myTeam = battleData?.MyTeam;
+            var myTeam = battleData?.GetMyTeam().ValueUnsafe();
 
             if (myTeam == null)
             {
                 return "Team data not available.";
             }
 
-            var teamList = myTeam.ValueUnsafe().GamePokemons.Select(p => p.MetaPokemon?.PSPokemon.PSName).ToList();
+            var teamList = myTeam.GamePokemons.Select(p => p.MetaPokemon?.PSPokemon.PSName).ToList();
             var prompt = $@"=== Team Order Selection ===
 Please select your team order for this single battle.
 You need to choose 1 lead Pokémon + 5 reserves from your 6 Pokémon team.
